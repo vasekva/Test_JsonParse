@@ -1,69 +1,64 @@
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 #include "./json/include/nlohmann/json.hpp"
 //#include "./json/include/delohmann/json.hpp"
 #include <fstream>
 
+using std::cout;
+using std::endl;
+using std::string;
+
+
 struct Person
 {
-    std::string name;
+    string name;
     int age;
 };
 
-struct Item
+class Item
 {
-	std::string ident;
+	public:
+		string	ident;
+		string	type;
+		string	rarity;
+		int		level;
+
+		Item() {}
+		Item(string ident, string type, int level, string rarity)
+			: ident(std::move(ident)), type(std::move(type)), level(level), rarity(std::move(rarity))
+		{}
+		~Item() = default;
+	private:
 };
 
-struct myAnswer
+class Weapon : public Item
 {
-    int everything;
+	public:
+		double damage;
+		double speed;
+
+		Weapon() {}
+		Weapon(string ident, string type, int level, string rarity, double damage, double speed)
+			: Item(ident, type, level, rarity), damage(damage), speed(speed)
+		{}
+		~Weapon() = default;
+	private:
 };
 
-struct myObject
+class Armour : public Item
 {
-    std::string currency;
-    double value;
+	public:
+		double protection;
+
+		Armour(string ident, string type, int level, string rarity, double protection)
+		: Item(ident, type, level, rarity), protection(protection)
+		{}
+		~Armour() = default;
+		Armour() {}
+	private:
 };
-
-struct  myStruct
-{
-    float pi;
-    bool happy;
-    std::string name;
-    void *nothing;
-    myAnswer answer;
-    std::vector<int> list;
-    myObject object;
-};
-
-void to_json(nlohmann::json &j_obj, const Person &p)
-{
-//    nlohmann::json j_obj{};
-
-    j_obj["pi"] = 3.141;
-    j_obj["happy"] = true;
-    j_obj["name"] = "Niels";
-    j_obj["nothing"] = nullptr;
-    j_obj["answer"]["everything"] = 42;
-    j_obj["list"] = {1, 0, 2};
-    j_obj["object"] = { {"currency", "USD"}, {"value", 42.99} };
-}
-
-//void from_json(const nlohmann::json &j_obj, Person &person)
-//{
-//    myStruct obj{};
-//    obj.pi = j_obj["pi"].get<float>();
-//    obj.happy = j_obj["happy"].get<bool>();
-//    obj.name = j_obj["name"].get<std::string>();
-////    obj.nothing = j_obj["nothing"].get_ptr<nlohmann::json::object_t*>();
-//    obj.nothing = j_obj["nothing"].get_ptr<nlohmann::json::object_t*>();
-//    obj.answer = myAnswer{ j_obj["answer"]["everything"].get<int>() };
-//    j_obj["list"].get_to<std::vector<int>>(obj.list);
-//    obj.object = myObject{ j_obj["object"]["currency"].get<std::string>(), j_obj["object"]["value"].get<double>() };
-//
-//}
 
 void read_game_object()
 {
@@ -73,68 +68,41 @@ void read_game_object()
     std::cout << j << std::endl;
 
     Item item;
-	item.ident = j[0]["ident"].get<std::string>();
+
+	std::vector<Item *> items;
 
 	for (int i = 0; j[i] != nullptr; i++)
 	{
-		std::cout << j[i]["ident"].get<std::string>() << " ";
-		std::cout << j[i]["type"].get<std::string>() << " ";
-		std::cout << j[i]["level"].get<int>() << " ";
-		std::cout << j[i]["rarity"].get<std::string>() << " ";
 		if (j[i]["type"].get<std::string>() == "Armour")
 		{
-			std::cout << j[i]["protection"].get<double>() << " ";;
+			Armour *object = new Armour();
+			object->ident = j[i]["ident"].get<std::string>();
+			object->type = j[i]["type"].get<std::string>();
+			object->level = j[i]["level"].get<int>();
+			object->rarity = j[i]["rarity"].get<std::string>();
+			object->protection = j[i]["protection"].get<double>();
+			items.push_back(object);
 		}
 		else
 		{
-			std::cout << j[i]["damage"].get<double>() << " ";;
-			std::cout << j[i]["speed"].get<double>() << " ";;
+			Weapon *object = new Weapon();
+			object->ident = j[i]["ident"].get<std::string>();
+			object->type = j[i]["type"].get<std::string>();
+			object->level = j[i]["level"].get<int>();
+			object->rarity = j[i]["rarity"].get<std::string>();
+			object->damage = j[i]["damage"].get<double>();
+			object->speed =  j[i]["speed"].get<double>();
+			items.push_back(object);
 		}
-		std::cout << std::endl;
 	}
 
+	for (int i = 0; i < items.size(); i++)
+	{
+		cout << i << " " << items[i]->ident << endl;
+	}
 }
 
 int main()
 {
-
 	read_game_object();
-    /**
-    {
-         "pi": 3.141,
-         "happy": true,
-         "name": "Niels",
-         "nothing": null,
-         "answer": {
-            "everything": 42
-         },
-         "list": [1, 0, 2],
-         "object": {
-            "currency": "USD",
-            "value": 42.99
-         }
-     }
-    */
-
-
-//    std::ifstream i("demo.json");
-//    nlohmann::json j;
-//    i >> j;
-//    std::cout << j << std::endl;
-//
-//    Person person;
-//
-//    myStruct obj{};
-//    obj.pi = j["pi"].get<float>();
-//    obj.happy = j["happy"].get<bool>();
-//    obj.name = j["name"].get<std::string>();
-//    obj.nothing = j["nothing"].get_ptr<nlohmann::json::object_t*>();
-//    obj.answer = myAnswer{ j["answer"]["everything"].get<int>() };
-//    j["list"].get_to<std::vector<int>>(obj.list);
-//    obj.object = myObject{ j["object"]["currency"].get<std::string>(), j["object"]["value"].get<double>() };
-//
-//    std::cout << obj.name << std::endl;
-//    std::cout << obj.answer.everything << std::endl;
-
-
 }
