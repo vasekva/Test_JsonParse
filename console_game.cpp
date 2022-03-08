@@ -156,7 +156,7 @@ void change_item_value(Item *item, string buff_type, int value)
 	}
 }
 
-void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
+int is_enough_value(Item *item, nlohmann::json *j)
 {
 	string	comparisons[] = {">", "<", ">=", "<=", "="};
 	string	parameter_action = (*j)[1];
@@ -172,47 +172,75 @@ void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j, string
 		index++;
 	}
 
-	for (int i = 0; i < (*items).size(); i++)
-	{
+//	for (int i = 0; i < (*items).size(); i++)
+//	{
+		int return_val = 0;
 		switch (index)
 		{
 			case 0:
-				if ((*items)[i]->level > parameter_val)
+			{
+				if (item->level > parameter_val)
 				{
-					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " > " << parameter_val << endl;
-					change_item_value((*items)[i], buff_type, value);
+//					cout << item->ident << " level " << item->level << " > " << parameter_val << endl;
+//					cout << "RETURN 0" << endl;
+					return_val = 1;
+//					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
+			}
 			case 1:
-				if ((*items)[i]->level < parameter_val)
+			{
+				if (item->level < parameter_val)
 				{
-					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " < " << parameter_val << endl;
-					change_item_value((*items)[i], buff_type, value);
+//					cout << item->ident << " level " << item->level << " < " << parameter_val << endl;
+//					cout << "RETURN 1" << endl;
+					return_val = 1;
+//					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
+			}
 			case 2:
-				if ((*items)[i]->level >= parameter_val)
+			{
+//				cout << item->ident << endl;
+				if (item->level >= parameter_val)
 				{
-					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " >= " << parameter_val << endl;
-					change_item_value((*items)[i], buff_type, value);
+//					cout << item->ident << " level " << item->level << " >= " << parameter_val << endl;
+//					cout << "RETURN 2" << endl;
+					return_val = 1;
+//					change_item_value((*items)[i], buff_type, value);
 				}
-				break ;
+				break;
+			}
 			case 3:
-				if ((*items)[i]->level <= parameter_val)
+			{
+				if (item->level <= parameter_val)
 				{
-					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " <= " << parameter_val << endl;
-					change_item_value((*items)[i], buff_type, value);
+//					cout << item->ident << " level " << item->level << " <= " << parameter_val << endl;
+//					cout << "RETURN 3" << endl;
+					return_val = 1;
+//					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
+			}
 			case 4:
-				if ((*items)[i]->level == parameter_val)
+			{
+				if (item->level == parameter_val)
 				{
-					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " = " << parameter_val << endl;
-					change_item_value((*items)[i], buff_type, value);
+//					cout << item->ident << " level " << item->level << " = " << parameter_val << endl;
+//					cout << "RETURN 4" << endl;
+					return_val = 1;
+//					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
+			}
+			default:
+			{
+//				cout << "RETURN -1" << endl;
+				return_val = -1;
+			}
 		}
-	}
+		return (return_val);
+//	}
 }
 
 void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
@@ -221,7 +249,7 @@ void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string 
 }
 
 
-void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
+int parse_numeric_parameter(Item *item, nlohmann::json *j)
 {
 	string	parameters[] = {"level", "damage", "speed", "protection"};
 	string	parameter_name = (*j)[0];
@@ -235,32 +263,59 @@ void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j, stri
 		index++;
 	}
 
-	for (int i = 0; i < (*items).size(); i++)
-	{
+//	for (int i = 0; i < (*items).size(); i++)
+//	{
 		switch (index)
 		{
 			case 0:
-				change_items_by_level(items, j, buff_type, value); return ;
+			{
+				int res = is_enough_value(item, j);
+//				cout << "Item " << item->ident << " has got value: " << res << endl;
+				return (res);
+			}
 //			case 1:
 //				change_items_by_damage(items, j, buff_type, value); return ;
 //			case 2:
 //				change_items_by_speed(items, j, buff_type, value); return ;
 //			case 3:
 //				change_items_by_protection(items, j, buff_type, value); return ;
+			default:
+				return (-1);
 		}
-	}
+//	}
 }
 
-void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
-{
+//TODO:: изменить код так, чтобы изменения применялись только к тем объектам, которые имеют все
+// необоходимые параметры согласно фильтрам
+void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value) {
+	int result_flag = 0;
 
-	for (int ind = 0; ind < (*j).size(); ind++)
+	for (int i = 0; i < (*items).size(); i++)
 	{
-		if ((*j)[ind].is_array())
-			parse_numeric_parameter(items, &(*j)[ind], buff_type, value);
-		else
+		for (int ind = 0; ind < (*j).size(); ind++)
 		{
-
+			if ((*j)[ind].is_array())
+				result_flag = parse_numeric_parameter((*items)[i], &(*j)[ind]);
+			else
+			{
+				if ((*j).size() > 1)
+				{
+//					cout << "This modificator has two filters!" << " ";
+//					cout << *j << endl;
+				}
+				else
+				{
+//					cout << "This modificator has one filters!" << " ";
+//					cout << *j << endl;
+//					cout << (*j)[ind] << endl;
+				}
+			}
+		}
+		cout << "RES_FLAG: " << result_flag << endl;
+		if (result_flag == 1)
+		{
+			change_item_value((*items)[i], buff_type, value);
+			result_flag = 0;
 		}
 	}
 }
@@ -296,16 +351,6 @@ int main()
 	std::vector<Item *> items;
 
 	read_game_object(&items);
-
-
-
-	for (int i = 0; i < items.size(); i++)
-	{
-		if (items[i]->type == "Armour")
-			cout << "Armour\n";
-		else
-			cout << "Weapon\n";
-	}
 
 	read_item_modificators(&items);
 }
