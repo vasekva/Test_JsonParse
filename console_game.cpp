@@ -5,6 +5,26 @@
 #include "./json/include/nlohmann/json.hpp"
 #include <fstream>
 
+#ifndef COLOR
+
+#define COLOR
+# define BACK_GRAY		"\033[47m"
+# define NORM			"\033[0m"
+# define BOLD			"\033[1m"
+# define RED			"\033[31m"
+# define GREEN			"\033[32m"
+# define YELLOW			"\033[33m"
+# define BLUE			"\033[34m"
+# define PURPLE			"\033[35m"
+# define BRIGHT_BLUE	"\033[36m"
+# define NONE			"\033[37m"
+
+# define URED			"\033[4;31m"
+# define UGREEN			"\033[4;32m"
+# define UBRIGHT_BLUE	"\033[4;36m"
+
+#endif
+
 using std::cout;
 using std::endl;
 using std::string;
@@ -21,7 +41,7 @@ class Item
 		Item(string ident, string type, int level, string rarity)
 			: ident(std::move(ident)), type(std::move(type)), level(level), rarity(std::move(rarity))
 		{}
-		~Item() = default;
+		virtual ~Item() = default;
 	private:
 };
 
@@ -59,8 +79,6 @@ void read_game_object(std::vector<Item *> *items)
 	stream >> j;
     std::cout << j << std::endl;
 
-
-
 	for (int i = 0; j[i] != nullptr; i++)
 	{
 		if (j[i]["type"].get<std::string>() == "Armour")
@@ -87,7 +105,58 @@ void read_game_object(std::vector<Item *> *items)
 	}
 }
 
-void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j)
+void print_message(string ident, string parameter, double prev_value, double new_value)
+{
+	cout << BLUE << ident << NORM
+		<< " item " << PURPLE << parameter
+		<< GREEN << " successfully changed" << NORM
+		<< " from "
+		<< UBRIGHT_BLUE << prev_value << NORM
+		<< " to "
+		<< UBRIGHT_BLUE << new_value << NORM << endl;
+}
+
+void change_item_value(Item *item, string buff_type, int value)
+{
+	Weapon	*weapon = nullptr;
+	Armour	*armour = nullptr;
+
+	if (item->type != "Armour")
+		weapon = dynamic_cast<Weapon *>(item);
+	else
+		armour = dynamic_cast<Armour *>(item);
+	if (weapon != nullptr)
+	{
+		if (buff_type == "DamageBuff")
+		{
+			double prev_val = weapon->damage;
+			weapon->damage += value;
+			print_message(item->ident, "damage", prev_val, weapon->damage);
+		}
+		else if (buff_type == "SpeedBuff")
+		{
+			double prev_val = weapon->speed;
+			weapon->speed += value;
+			print_message(item->ident, "speed", prev_val, weapon->speed);
+		}
+	}
+	else
+	{
+		if (armour != nullptr)
+		{
+			if (buff_type == "ProtectionBuff")
+			{
+				double prev_val = armour->protection;
+				armour->protection += value;
+				print_message(item->ident, "protection", prev_val, armour->protection);
+			}
+		}
+		else
+			cout << item->ident << RED << " Cast error!" << NORM;
+	}
+}
+
+void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
 {
 	string	comparisons[] = {">", "<", ">=", "<=", "="};
 	string	parameter_action = (*j)[1];
@@ -111,37 +180,48 @@ void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j)
 				if ((*items)[i]->level > parameter_val)
 				{
 					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " > " << parameter_val << endl;
+					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
 			case 1:
 				if ((*items)[i]->level < parameter_val)
 				{
 					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " < " << parameter_val << endl;
+					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
 			case 2:
 				if ((*items)[i]->level >= parameter_val)
 				{
 					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " >= " << parameter_val << endl;
+					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
 			case 3:
 				if ((*items)[i]->level <= parameter_val)
 				{
 					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " <= " << parameter_val << endl;
+					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
 			case 4:
 				if ((*items)[i]->level == parameter_val)
 				{
 					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " = " << parameter_val << endl;
+					change_item_value((*items)[i], buff_type, value);
 				}
 				break ;
 		}
 	}
 }
 
-void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j)
+void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
+{
+
+}
+
+
+void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
 {
 	string	parameters[] = {"level", "damage", "speed", "protection"};
 	string	parameter_name = (*j)[0];
@@ -160,17 +240,28 @@ void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j)
 		switch (index)
 		{
 			case 0:
-				change_items_by_level(items, j); return ;
+				change_items_by_level(items, j, buff_type, value); return ;
+//			case 1:
+//				change_items_by_damage(items, j, buff_type, value); return ;
+//			case 2:
+//				change_items_by_speed(items, j, buff_type, value); return ;
+//			case 3:
+//				change_items_by_protection(items, j, buff_type, value); return ;
 		}
 	}
 }
 
-void parse_filter_array(std::vector<Item *> *items, nlohmann::json *j)
+void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
 {
+
 	for (int ind = 0; ind < (*j).size(); ind++)
 	{
 		if ((*j)[ind].is_array())
-			parse_numeric_parameter(items, &(*j)[ind]);
+			parse_numeric_parameter(items, &(*j)[ind], buff_type, value);
+		else
+		{
+
+		}
 	}
 }
 
@@ -189,7 +280,7 @@ void read_item_modificators(std::vector<Item *> *items)
 		{
 			if (j[i]["filters"].is_array())
 			{
-				parse_filter_array(items, &j[i]["filters"]);
+				parse_filter_attribute(items, &j[i]["filters"], j[i]["type"], j[i]["value"]);
 			}
 
 		}
@@ -205,6 +296,8 @@ int main()
 	std::vector<Item *> items;
 
 	read_game_object(&items);
+
+
 
 	for (int i = 0; i < items.size(); i++)
 	{
