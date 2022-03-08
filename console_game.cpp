@@ -3,19 +3,11 @@
 #include <utility>
 #include <vector>
 #include "./json/include/nlohmann/json.hpp"
-//#include "./json/include/delohmann/json.hpp"
 #include <fstream>
 
 using std::cout;
 using std::endl;
 using std::string;
-
-
-struct Person
-{
-    string name;
-    int age;
-};
 
 class Item
 {
@@ -60,16 +52,14 @@ class Armour : public Item
 	private:
 };
 
-void read_game_object()
+void read_game_object(std::vector<Item *> *items)
 {
-	std::ifstream stream("data.json");
+	std::ifstream stream("inventory.json");
     nlohmann::json j;
 	stream >> j;
     std::cout << j << std::endl;
 
-    Item item;
 
-	std::vector<Item *> items;
 
 	for (int i = 0; j[i] != nullptr; i++)
 	{
@@ -81,7 +71,7 @@ void read_game_object()
 			object->level = j[i]["level"].get<int>();
 			object->rarity = j[i]["rarity"].get<std::string>();
 			object->protection = j[i]["protection"].get<double>();
-			items.push_back(object);
+			(*items).push_back(object);
 		}
 		else
 		{
@@ -92,17 +82,137 @@ void read_game_object()
 			object->rarity = j[i]["rarity"].get<std::string>();
 			object->damage = j[i]["damage"].get<double>();
 			object->speed =  j[i]["speed"].get<double>();
-			items.push_back(object);
+			(*items).push_back(object);
 		}
 	}
+}
 
-	for (int i = 0; i < items.size(); i++)
+void change_items_by_level(std::vector<Item *> *items, nlohmann::json *j)
+{
+	string	comparisons[] = {">", "<", ">=", "<=", "="};
+	string	parameter_action = (*j)[1];
+	string	parameter_name = (*j)[0];
+	int		parameter_val = (*j)[2];
+	int		index = 0;
+
+	int length = (sizeof(comparisons) / sizeof(comparisons[0]));
+	while (index != length)
 	{
-		cout << i << " " << items[i]->ident << endl;
+		if (comparisons[index] == parameter_action)
+			break;
+		index++;
+	}
+
+	for (int i = 0; i < (*items).size(); i++)
+	{
+		switch (index)
+		{
+			case 0:
+				if ((*items)[i]->level > parameter_val)
+				{
+					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " > " << parameter_val << endl;
+				}
+				break ;
+			case 1:
+				if ((*items)[i]->level < parameter_val)
+				{
+					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " < " << parameter_val << endl;
+				}
+				break ;
+			case 2:
+				if ((*items)[i]->level >= parameter_val)
+				{
+					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " >= " << parameter_val << endl;
+				}
+				break ;
+			case 3:
+				if ((*items)[i]->level <= parameter_val)
+				{
+					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " <= " << parameter_val << endl;
+				}
+				break ;
+			case 4:
+				if ((*items)[i]->level == parameter_val)
+				{
+					cout << (*items)[i]->ident << " level " << (*items)[i]->level << " = " << parameter_val << endl;
+				}
+				break ;
+		}
+	}
+}
+
+void parse_numeric_parameter(std::vector<Item *> *items, nlohmann::json *j)
+{
+	string	parameters[] = {"level", "damage", "speed", "protection"};
+	string	parameter_name = (*j)[0];
+	int		index = 0;
+
+	int length = (sizeof(parameters) / sizeof(parameters[0]));
+	while (index < length)
+	{
+		if (parameters[index] == parameter_name)
+			break;
+		index++;
+	}
+
+	for (int i = 0; i < (*items).size(); i++)
+	{
+		switch (index)
+		{
+			case 0:
+				change_items_by_level(items, j); return ;
+		}
+	}
+}
+
+void parse_filter_array(std::vector<Item *> *items, nlohmann::json *j)
+{
+	for (int ind = 0; ind < (*j).size(); ind++)
+	{
+		if ((*j)[ind].is_array())
+			parse_numeric_parameter(items, &(*j)[ind]);
+	}
+}
+
+void read_item_modificators(std::vector<Item *> *items)
+{
+	std::ifstream stream("modificators.json");
+	nlohmann::json j;
+	stream >> j;
+	std::cout << j << std::endl;
+
+	std::string s = j.dump();
+
+	for (int i = 0; j[i] != nullptr; i++)
+	{
+		try
+		{
+			if (j[i]["filters"].is_array())
+			{
+				parse_filter_array(items, &j[i]["filters"]);
+			}
+
+		}
+		catch (...)
+		{
+			cout << "Fuck" << endl;
+		}
 	}
 }
 
 int main()
 {
-	read_game_object();
+	std::vector<Item *> items;
+
+	read_game_object(&items);
+
+	for (int i = 0; i < items.size(); i++)
+	{
+		if (items[i]->type == "Armour")
+			cout << "Armour\n";
+		else
+			cout << "Weapon\n";
+	}
+
+	read_item_modificators(&items);
 }
