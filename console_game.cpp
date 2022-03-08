@@ -105,21 +105,31 @@ void read_game_object(std::vector<Item *> *items)
 	}
 }
 
-void print_message(string ident, string parameter, double prev_value, double new_value)
+void print_message(nlohmann::json *json_arr, string item_ident, double new_value)
 {
-	cout << BLUE << ident << NORM
-		<< " item " << PURPLE << parameter
-		<< GREEN << " successfully changed" << NORM
-		<< " from "
-		<< UBRIGHT_BLUE << prev_value << NORM
+	string	type = (*json_arr)["type"];
+	string	mod_ident = (*json_arr)["ident"];
+	int		applied_buff = (*json_arr)["value"];
+
+	cout << PURPLE << mod_ident << " " << NORM
+		<< BLUE << type
+		<< GREEN << " has been applied" << NORM << " to "
+		<< BLUE << item_ident << NORM
+		<< " and changed its value from "
+		<< UBRIGHT_BLUE << new_value - applied_buff << NORM
 		<< " to "
-		<< UBRIGHT_BLUE << new_value << NORM << endl;
+		<< UBRIGHT_BLUE << new_value << NORM
+		<< endl;
 }
 
-void change_item_value(Item *item, string buff_type, int value)
+void change_item_value(Item *item, nlohmann::json *json_arr)
 {
 	Weapon	*weapon = nullptr;
 	Armour	*armour = nullptr;
+	string	buff_type = (*json_arr)["type"];
+	int		value = (*json_arr)["value"];
+	string	mod_ident = (*json_arr)["ident"];
+
 
 	if (item->type != "Armour")
 		weapon = dynamic_cast<Weapon *>(item);
@@ -129,15 +139,13 @@ void change_item_value(Item *item, string buff_type, int value)
 	{
 		if (buff_type == "DamageBuff")
 		{
-			double prev_val = weapon->damage;
 			weapon->damage += value;
-			print_message(item->ident, "damage", prev_val, weapon->damage);
+			print_message(json_arr, item->ident, weapon->damage);
 		}
 		else if (buff_type == "SpeedBuff")
 		{
-			double prev_val = weapon->speed;
 			weapon->speed += value;
-			print_message(item->ident, "speed", prev_val, weapon->speed);
+			print_message(json_arr, item->ident, weapon->speed);
 		}
 	}
 	else
@@ -146,9 +154,8 @@ void change_item_value(Item *item, string buff_type, int value)
 		{
 			if (buff_type == "ProtectionBuff")
 			{
-				double prev_val = armour->protection;
 				armour->protection += value;
-				print_message(item->ident, "protection", prev_val, armour->protection);
+				print_message(json_arr,mod_ident, armour->protection);
 			}
 		}
 		else
@@ -172,75 +179,32 @@ int is_enough_value(Item *item, nlohmann::json *j)
 		index++;
 	}
 
-//	for (int i = 0; i < (*items).size(); i++)
-//	{
-		int return_val = 0;
-		switch (index)
+	int return_val = 0;
+	switch (index)
+	{
+		case 0:
 		{
-			case 0:
-			{
-				if (item->level > parameter_val)
-				{
-//					cout << item->ident << " level " << item->level << " > " << parameter_val << endl;
-//					cout << "RETURN 0" << endl;
-					return_val = 1;
-//					change_item_value((*items)[i], buff_type, value);
-				}
-				break ;
-			}
-			case 1:
-			{
-				if (item->level < parameter_val)
-				{
-//					cout << item->ident << " level " << item->level << " < " << parameter_val << endl;
-//					cout << "RETURN 1" << endl;
-					return_val = 1;
-//					change_item_value((*items)[i], buff_type, value);
-				}
-				break ;
-			}
-			case 2:
-			{
-//				cout << item->ident << endl;
-				if (item->level >= parameter_val)
-				{
-//					cout << item->ident << " level " << item->level << " >= " << parameter_val << endl;
-//					cout << "RETURN 2" << endl;
-					return_val = 1;
-//					change_item_value((*items)[i], buff_type, value);
-				}
-				break;
-			}
-			case 3:
-			{
-				if (item->level <= parameter_val)
-				{
-//					cout << item->ident << " level " << item->level << " <= " << parameter_val << endl;
-//					cout << "RETURN 3" << endl;
-					return_val = 1;
-//					change_item_value((*items)[i], buff_type, value);
-				}
-				break ;
-			}
-			case 4:
-			{
-				if (item->level == parameter_val)
-				{
-//					cout << item->ident << " level " << item->level << " = " << parameter_val << endl;
-//					cout << "RETURN 4" << endl;
-					return_val = 1;
-//					change_item_value((*items)[i], buff_type, value);
-				}
-				break ;
-			}
-			default:
-			{
-//				cout << "RETURN -1" << endl;
-				return_val = -1;
-			}
+			if (item->level > parameter_val) { return_val = 1; } break ;
 		}
-		return (return_val);
-//	}
+		case 1:
+		{
+			if (item->level < parameter_val) { return_val = 1; } break ;
+		}
+		case 2:
+		{
+			if (item->level >= parameter_val) { return_val = 1; } break;
+		}
+		case 3:
+		{
+			if (item->level <= parameter_val) { return_val = 1; } break ;
+		}
+		case 4:
+		{
+			if (item->level == parameter_val) { return_val = 1; } break ;
+		}
+		default: { return_val = -1; }
+	}
+	return (return_val);
 }
 
 void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
@@ -249,10 +213,10 @@ void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string 
 }
 
 
-int parse_numeric_parameter(Item *item, nlohmann::json *j)
+int parse_numeric_parameter(Item *item, nlohmann::json *filer)
 {
 	string	parameters[] = {"level", "damage", "speed", "protection"};
-	string	parameter_name = (*j)[0];
+	string	parameter_name = (*filer)[0];
 	int		index = 0;
 
 	int length = (sizeof(parameters) / sizeof(parameters[0]));
@@ -269,7 +233,7 @@ int parse_numeric_parameter(Item *item, nlohmann::json *j)
 		{
 			case 0:
 			{
-				int res = is_enough_value(item, j);
+				int res = is_enough_value(item, filer);
 //				cout << "Item " << item->ident << " has got value: " << res << endl;
 				return (res);
 			}
@@ -285,57 +249,69 @@ int parse_numeric_parameter(Item *item, nlohmann::json *j)
 //	}
 }
 
+int parse_string_parameter(Item *item, nlohmann::json *j)
+{
+	int return_val = 0;
+
+	try
+	{
+		if (j[0]["type"] == item->type)
+		{
+//			cout << j[0]["type"] << " == " << item->type << endl;
+			return_val = 1;
+		}
+	}
+	catch (std::exception e)
+	{
+
+	}
+	return (return_val);
+}
+
 //TODO:: изменить код так, чтобы изменения применялись только к тем объектам, которые имеют все
 // необоходимые параметры согласно фильтрам
-void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value) {
-	int result_flag = 0;
+void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *json_arr)
+{
+	int				result_sum = 0;
+	string			buff_type = (*json_arr)["type"];
+	nlohmann::json	*filters = &(*json_arr)["filters"];
 
 	for (int i = 0; i < (*items).size(); i++)
 	{
-		for (int ind = 0; ind < (*j).size(); ind++)
+		for (int ind = 0; ind < (*filters).size(); ind++)
 		{
-			if ((*j)[ind].is_array())
-				result_flag = parse_numeric_parameter((*items)[i], &(*j)[ind]);
+			if ((*filters)[ind].is_array())
+				result_sum += parse_numeric_parameter((*items)[i], &(*filters)[ind]);
 			else
 			{
-				if ((*j).size() > 1)
-				{
-//					cout << "This modificator has two filters!" << " ";
-//					cout << *j << endl;
-				}
-				else
-				{
-//					cout << "This modificator has one filters!" << " ";
-//					cout << *j << endl;
-//					cout << (*j)[ind] << endl;
-				}
+				result_sum += parse_string_parameter((*items)[i], &(*filters)[ind]);
 			}
 		}
-		cout << "RES_FLAG: " << result_flag << endl;
-		if (result_flag == 1)
+//		cout << (*items)[i]->ident << " RES_FLAG: " << result_sum << " vs " << (*filters).size() << endl;
+		if (result_sum == (*filters).size())
 		{
-			change_item_value((*items)[i], buff_type, value);
-			result_flag = 0;
+			change_item_value((*items)[i], json_arr);
 		}
+		result_sum = 0;
 	}
 }
 
 void read_item_modificators(std::vector<Item *> *items)
 {
 	std::ifstream stream("modificators.json");
-	nlohmann::json j;
-	stream >> j;
-	std::cout << j << std::endl;
+	nlohmann::json json;
+	stream >> json;
+	std::cout << json << std::endl;
 
-	std::string s = j.dump();
+	std::string s = json.dump();
 
-	for (int i = 0; j[i] != nullptr; i++)
+	for (int i = 0; json[i] != nullptr; i++)
 	{
 		try
 		{
-			if (j[i]["filters"].is_array())
+			if (json[i]["filters"].is_array())
 			{
-				parse_filter_attribute(items, &j[i]["filters"], j[i]["type"], j[i]["value"]);
+				parse_filter_attribute(items, &json[i]);
 			}
 
 		}
@@ -354,3 +330,5 @@ int main()
 
 	read_item_modificators(&items);
 }
+
+//git commit -m"Completed applying the DamageBuff filters by level and type"
