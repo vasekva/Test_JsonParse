@@ -1,0 +1,3 @@
+[
+  { "ident": "holy_stick", "filters": [{"type": "Melee"}, {"rarity": "Epic"}, {"type": "Armour"}], "type": "SpeedBuff", "value": 13 }
+]

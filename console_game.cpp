@@ -77,7 +77,6 @@ void read_game_object(std::vector<Item *> *items)
 	std::ifstream stream("inventory.json");
     nlohmann::json j;
 	stream >> j;
-    std::cout << j << std::endl;
 
 	for (int i = 0; j[i] != nullptr; i++)
 	{
@@ -109,7 +108,7 @@ void print_message(nlohmann::json *json_arr, string item_ident, double new_value
 {
 	string	type = (*json_arr)["type"];
 	string	mod_ident = (*json_arr)["ident"];
-	int		applied_buff = (*json_arr)["value"];
+	double	applied_buff = (*json_arr)["value"];
 
 	cout << PURPLE << mod_ident << " " << NORM
 		<< BLUE << type
@@ -127,9 +126,8 @@ void change_item_value(Item *item, nlohmann::json *json_arr)
 	Weapon	*weapon = nullptr;
 	Armour	*armour = nullptr;
 	string	buff_type = (*json_arr)["type"];
-	int		value = (*json_arr)["value"];
+	double	value = (*json_arr)["value"];
 	string	mod_ident = (*json_arr)["ident"];
-
 
 	if (item->type != "Armour")
 		weapon = dynamic_cast<Weapon *>(item);
@@ -207,12 +205,6 @@ int is_enough_value(Item *item, nlohmann::json *j)
 	return (return_val);
 }
 
-void change_items_by_rare(std::vector<Item *> *items, nlohmann::json *j, string buff_type, int value)
-{
-
-}
-
-
 int parse_numeric_parameter(Item *item, nlohmann::json *filer)
 {
 	string	parameters[] = {"level", "damage", "speed", "protection"};
@@ -227,26 +219,16 @@ int parse_numeric_parameter(Item *item, nlohmann::json *filer)
 		index++;
 	}
 
-//	for (int i = 0; i < (*items).size(); i++)
-//	{
-		switch (index)
+	switch (index)
+	{
+		case 0:
 		{
-			case 0:
-			{
-				int res = is_enough_value(item, filer);
-//				cout << "Item " << item->ident << " has got value: " << res << endl;
-				return (res);
-			}
-//			case 1:
-//				change_items_by_damage(items, j, buff_type, value); return ;
-//			case 2:
-//				change_items_by_speed(items, j, buff_type, value); return ;
-//			case 3:
-//				change_items_by_protection(items, j, buff_type, value); return ;
-			default:
-				return (-1);
+			int res = is_enough_value(item, filer);
+			return (res);
 		}
-//	}
+		default:
+			return (-1);
+	}
 }
 
 int parse_string_parameter(Item *item, nlohmann::json *j)
@@ -256,10 +238,9 @@ int parse_string_parameter(Item *item, nlohmann::json *j)
 	try
 	{
 		if (j[0]["type"] == item->type)
-		{
-//			cout << j[0]["type"] << " == " << item->type << endl;
 			return_val = 1;
-		}
+		else if (j[0]["rarity"] == item->rarity)
+			return_val = 1;
 	}
 	catch (std::exception e)
 	{
@@ -268,8 +249,6 @@ int parse_string_parameter(Item *item, nlohmann::json *j)
 	return (return_val);
 }
 
-//TODO:: изменить код так, чтобы изменения применялись только к тем объектам, которые имеют все
-// необоходимые параметры согласно фильтрам
 void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *json_arr)
 {
 	int				result_sum = 0;
@@ -283,52 +262,50 @@ void parse_filter_attribute(std::vector<Item *> *items, nlohmann::json *json_arr
 			if ((*filters)[ind].is_array())
 				result_sum += parse_numeric_parameter((*items)[i], &(*filters)[ind]);
 			else
-			{
 				result_sum += parse_string_parameter((*items)[i], &(*filters)[ind]);
-			}
 		}
-//		cout << (*items)[i]->ident << " RES_FLAG: " << result_sum << " vs " << (*filters).size() << endl;
-		if (result_sum == (*filters).size())
-		{
+		if (result_sum != 0)
 			change_item_value((*items)[i], json_arr);
-		}
 		result_sum = 0;
 	}
 }
 
 void read_item_modificators(std::vector<Item *> *items)
 {
-	std::ifstream stream("modificators.json");
 	nlohmann::json json;
-	stream >> json;
-	std::cout << json << std::endl;
+	std::ifstream stream("test.json");
+//	std::ifstream stream("protection.json");
 
-	std::string s = json.dump();
-
-	for (int i = 0; json[i] != nullptr; i++)
+	try
 	{
-		try
+		stream >> json;
+		if (json.is_null())
+			throw std::exception();
+		for (int i = 0; json[i] != nullptr; i++)
 		{
-			if (json[i]["filters"].is_array())
+			try
 			{
-				parse_filter_attribute(items, &json[i]);
+				if (json[i]["filters"].is_array())
+					parse_filter_attribute(items, &json[i]);
 			}
-
+			catch (...)
+			{
+				cout << RED << "Something went wrong!" << NORM << endl;
+			}
 		}
-		catch (...)
-		{
-			cout << "Fuck" << endl;
-		}
+	}
+	catch (...)
+	{
+		cout << RED << "Json read error!" << endl << NORM;
 	}
 }
 
 int main()
 {
-	std::vector<Item *> items;
+	std::vector<Item *>	items;
+	nlohmann::json		*json;
+
 
 	read_game_object(&items);
-
 	read_item_modificators(&items);
 }
-
-//git commit -m"Completed applying the DamageBuff filters by level and type"
