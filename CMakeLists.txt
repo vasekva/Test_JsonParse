@@ -75,4 +75,4 @@ add_executable(Test_Exercise
         json/include/nlohmann/json_fwd.hpp
         json/include/nlohmann/ordered_map.hpp
         json/single_include/nlohmann/json.hpp
-        console_game.cpp)
+        start_pasing.cpp classes_prototypes.hpp read_game_objects.cpp parse_functions.cpp print_messages.cpp)
